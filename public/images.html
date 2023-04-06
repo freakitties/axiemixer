@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width"/>
+        <meta charSet="utf-8"/>
+        <title>Freak's Axie Image Grabber</title>
+        <meta name="twitter:card" content="summary"/>
+        <meta property="og:site_name" content="Freak's Axie Image Grabber"/>
+        <meta name="og:image" content="https://storage.googleapis.com/axie-cdn/banner.png"/>
+        <meta property="og:title" content="Freak's Axie Image Grabber"/>
+        <meta name="og:description" content="Freak's Axie Image Grabber"/>
+        <meta property="og:site_name" content="Freak's Axie Image Grabber"/>
+<meta name="next-head-count" content="0" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+        <noscript data-n-css=""></noscript>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js" integrity="sha384-tsQFqpEReu7ZLhBV2VZlAu7zcOV+rXbYlF2cqB8txI/8aZajjp4Bqd+V6D5IgvKT" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.1/pixi.min.js" integrity="sha384-xdEN7ies9cZm/l8HslPhg0lGG/uQuIW2KQ/EVt71QFjarfJWY95fAMqbqw/1C2rX" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/pixi-spine@1.6.2/dist/pixi-spine.js" integrity="sha384-PGRf72BY8JW3ppTcwxvXX4s6ulh9aicQ4+01StIeX3cwinaBgMi7iTkSZQDEFAoO" crossorigin="anonymous"></script>
+
+        <script src="images.js"></script>
+        <script src="mixer-init.js"></script>
+        <!--<script src="/axie/js/api.js"></script>-->
+        <script src="https://freakitties.github.io/axie/js/api.js"></script>
+        <style>
+            .StoreNavigationBar_Container__xsKNP {
+                display: none;
+            }
+            .NavigationDrawer_Drawer__A4D3Q {
+                display: none;
+            }
+            .NavigationBar_Content__TO6Pq {
+                display: none;
+            }
+            @media (prefers-color-scheme: dark) {
+                body {
+                    color: #bdc1c6;
+                    background: #202124;
+                }
+                canvas {
+                    background-color: #202124;
+                }
+
+                select {
+                    color: #fff;
+                    background: #6c757d;
+                    border-radius: 0.25rem;
+                }
+            }
+        </style>
+    </head>
+    <script>
+        var naked = false;
+
+        function generateAccessoryRadioDiv(key, name, type) {
+            let newDiv = document.createElement("div");
+            newDiv.classList.add("form-check");
+            newDiv.classList.add("mr-4");
+            let newInput = document.createElement("input");
+            newInput.setAttribute("type", "radio");
+            newInput.id = key;
+            newInput.name = "radioButton" + type;
+            newInput.classList.add("form-check-input");
+            newInput.onchange = handleRadios;
+            let newLabel = document.createElement("label");
+            newLabel.classList.add("form-check-label");
+            newLabel.htmlFor = key;
+            newLabel.textContent = name;
+            newDiv.append(newInput);
+            newDiv.append(newLabel);
+            return newDiv;
+        }
+
+        function init() {
+            prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            let backgroundColor = 0xffffff;
+            if (prefersDarkScheme.matches) {
+                backgroundColor = 0x202124;
+            }
+            app = new PIXI.Application(2048, 1024, {backgroundColor : backgroundColor /*,  transparent: true*/ });
+            app.view.id = "canvas";
+            app.view.style.height = "480px";
+            app.view.style.border = "1px solid #d9d9d9";
+            document.getElementById("freakImageLoc").appendChild(app.view);
+            initMixer(GENES_DATA, SAMPLES, VARIANTS, ANIMATIONS);
+
+            accDiv = document.getElementById("freakControlsAccessories");
+
+            for (let i = 0; i < ACCESSORIES.length; i++) {
+                let key = ACCESSORIES[i].key;
+                let name = ACCESSORIES[i].name;
+                if (key.startsWith("air")) {
+                    accessoryTypeDiv = ("airAccessories");
+                    type = "Air";
+                } else if (key.startsWith("cheek")) {
+                    accessoryTypeDiv = ("cheekAccessories");
+                    type = "Cheek";
+                } else if (key.startsWith("ground")) {
+                    accessoryTypeDiv = ("groundAccessories");
+                    type = "Ground";
+                } else if (key.startsWith("hip")) {
+                    accessoryTypeDiv = ("hipAccessories");
+                    type = "Hip";
+                } else if (key.startsWith("neck")) {
+                    accessoryTypeDiv = ("neckAccessories");
+                    type = "Neck";
+                }
+                let radioDiv = generateAccessoryRadioDiv(key, name, type);
+                document.getElementById(accessoryTypeDiv).append(radioDiv);
+            }
+        }
+
+        async function getAxie() {
+            oldID = axieID;
+            axieID = parseInt($("#axieID").val());
+            if (!axieID) {
+                alert("bad axie ID");
+                return;
+            }
+            //if (oldID == axieID) return;
+            console.log(axieID);
+
+            if (axieID == 2595) {
+                genes = "0x2800000000000300024080d00410000000000088082040020001001410604104000100081820c00200010000100041060001001408a0c0020000008008204502";
+            } else {
+                axie = await getAxieDetails(axieID);
+                genes = axie.newGenes;
+            }
+
+            PIXI.loader.reset();
+
+            let meta = new Map();
+            meta.set("body-id", axieID.toString());
+            getAccessories(meta);
+
+            //var b = new myMixer.AxieMixer(genes.substring(2));
+            var b = new AxieMixer(genes, meta, false);
+            c = {
+                json: b.spine,
+                images: {
+                    "axie-2d-v3-stuff.png": "https://axiecdn.axieinfinity.com/mixer-stuffs/v3/"
+                },
+                variant: b.variant
+            }
+
+            g = PIXI.loader
+            s = {};
+            attachments = c.json.skins[0].attachments;
+            for (var t in attachments) {
+                var r = attachments[t];
+                for (var u in r) {
+                    var e = r[u].path
+                      , i = void 0;
+                    i = VARIANT_LIST.includes(e) ? "https://axiecdn.axieinfinity.com/mixer-stuffs/v3/".concat(e.replace(".", "/"), "/").concat(c.variant, ".png") : "https://axiecdn.axieinfinity.com/mixer-stuffs/v3/".concat(e.replace(".", "/"), ".png");
+
+                    if (naked) {
+                        //naked mystic
+                        i = i.replaceAll("body-mystic", "body");
+                        if (i.indexOf("mystic-leg") != -1) {
+                            i = i.replaceAll("mystic-leg", "leg");
+                            i = i.replace(".png", "/" + c.variant + ".png");
+                            //https://axiecdn.axieinfinity.com/mixer-stuffs/v3/body-normal/mystic-leg-back-left.png
+                            //https://axiecdn.axieinfinity.com/mixer-stuffs/v3/body-normal/leg-back-left-long/aquatic-02.png
+                        }
+
+                        if (i.indexOf("body-light") != -1) {
+                            i = "https://freakitties.github.io/axie/pixi/origin/static/image/1x1.png";
+                            //https://axiecdn.axieinfinity.com/mixer-stuffs/v3/body-normal/body-light-breath.png
+                            //https://axiecdn.axieinfinity.com/mixer-stuffs/v3/body-normal/body-light-pulse.png
+                            //https://axiecdn.axieinfinity.com/mixer-stuffs/v3/body-normal/body-light-life.png
+                            //TODO: replace class emblem
+                        }
+                    }
+
+                    s[e] = PIXI.Texture.from(i);
+                    try {
+                        g.add(e, i)
+                    } catch (v) {
+                        console.log("AxieFigure_SkinAttachments", v)
+                    }
+                }
+            }
+            g.add("floor", "/static/image/floor.png").on("complete", function() {
+
+                if (b) {
+                    var c, d = g.resources.floor.texture, a = new PIXI.Sprite(d);
+                    a.width = 320,
+                    a.height = 200,
+                    a.pivot.set(.5),
+                    a.position.set(app.renderer.screen.width / 2 - 160, app.renderer.screen.height - 230),
+                    a.name = "floor",
+                    null == b || null === (c = b.stage) || void 0 === c || c.addChild(a)
+                }
+
+            });
+            g.load();
+            g.once("complete", function() {
+                var d, e = new PIXI.spine.core.TextureAtlas;
+                e.addTextureHash(s, !1);
+                var spineAtlasLoader = new PIXI.spine.core.AtlasAttachmentLoader(e)
+                  , spineJsonParser = new PIXI.spine.core.SkeletonJson(spineAtlasLoader)
+                  , spineData = spineJsonParser.readSkeletonData(c.json);
+
+                animation = new PIXI.spine.Spine(spineData);
+
+                animation.name = "axie",
+                animation.position.set(app.view.width/2, app.view.height * 0.75),
+                animation.scale.set(.65),
+                //animation.pivot.set(-21, 0),
+                animation.state.setAnimation(0, 'action/idle/normal', true);
+
+                /*
+                animation.state.setAnimation(0, j, !1).onComplete = function() {
+                    p(a)
+                }
+                */
+
+                app.stage.removeChildren();
+                app.stage.addChild(animation)
+                //null == app || null === (d = app.stage) || void 0 === d || d.addChild(animation)
+
+                let animationList = document.getElementById("animationList");
+                while (animationList.options.length > 0) {
+                    animationList.remove(0);
+                }
+                for (let i = 0; i < spineData.animations.length; i++) {
+                    let name = spineData.animations[i].name;
+                    let option = document.createElement("option");
+                    option.setAttribute("value", name);
+                    option.append(document.createTextNode(name));
+                    if (i == 0) option.setAttribute("selected", "selected");
+                    animationList.append(option);
+                }
+
+                animationList.onchange = function(e) {
+                    var animationName = e.target.value;
+                    animation.state.setAnimation(0, animationName, true);
+                }
+            });
+        }
+
+        function stopAllPartAnimations() {
+            animation.state.clearTrack(1);
+            animation.state.clearTrack(2);
+            animation.state.clearTrack(3);
+            animation.skeleton.setToSetupPose();
+        }
+
+        function animateAllParts() {
+            //start multiple animations on multiple tracks
+            animation.state.setAnimation(1, "action/mix/ear-animation", true);
+            animation.state.setAnimation(2, "action/mix/eyes-animation", true);
+            animation.state.setAnimation(3, "action/mix/normal-mouth-animation", true);
+
+            //animation.state.setAnimation(0, "action/mix/normal-body-animation", true);
+        }
+
+        function handleCheckbox(cb) {
+            if (cb.checked) {
+                animateAllParts();
+            } else {
+                stopAllPartAnimations();
+            }
+        }
+
+        function handleNakedCheckbox(cb) {
+            if (cb.checked) {
+                naked = true;
+            } else {
+                naked = false;
+            }
+            getAxie();
+        }
+
+        let radioTypes = ["Air", "Cheek", "Ground", "Hip", "Neck"];
+        function handleRadios(cb) {
+            getAxie();  //maybe do this better
+        }
+
+        function getAccessories(meta) {
+            let radios = document.querySelectorAll('input[type="radio"]');
+            for( i = 0; i < radios.length; i++ ) {
+                if( radios[i].checked ) {
+                    let key = radios[i].id;
+                    if (key.startsWith("air")) {
+                        meta.set("accessory-air", "accessory-" + key);
+                    } else if (key.startsWith("cheek")) {
+                        meta.set("accessory-cheek", "accessory-" + key);
+                    } else if (key.startsWith("ground")) {
+                        meta.set("accessory-ground", "accessory-" + key);
+                    } else if (key.startsWith("hip")) {
+                        meta.set("accessory-hip", "accessory-" + key);
+                    } else if (key.startsWith("neck")) {
+                        meta.set("accessory-neck", "accessory-" + key);
+                    }
+                }
+            }
+        }
+
+        function clearAccessories() {
+            let radios = document.querySelectorAll('input[type="radio"]');
+            for( i = 0; i < radios.length; i++ ) {
+                radios[i].checked = false;
+            }
+            getAxie();
+        }
+
+        function togglePause() {
+            PIXI.spine.Spine.globalAutoUpdate = !PIXI.spine.Spine.globalAutoUpdate;
+        }
+
+        function downloadImage() {
+            var button = document.getElementById('IDButton');
+            let canvas = document.getElementById("canvas");
+            let dataURL = app.renderer.extract.canvas(app.stage).toDataURL();
+            button.href = dataURL;
+            button.download = axieID + ".png";
+        }
+
+    </script>
+    <body>
+        <div id="__next" data-reactroot="" style="display:none">
+
+        </div>
+        <!--<div id="marketplacePortal"></div>-->
+
+        <div id="freakHeaderDiv"></div><br/>
+        <div class="container" id="freakImageDiv">
+            <div class="row ml-0" id="freakControls">
+                <input id="axieID" class="form-inline form-control-sm col-1" placeholder="Axie ID" value="2595"/>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="getAxie()">Get Axie Image</button>&nbsp;
+                <span class="pt-2">Animation:&nbsp;</span><select class="" id="animationList"></select>&nbsp;
+                <i class="material-icons btn" style="font-size:24px" onclick="togglePause();">pause_circle_outline</i>&nbsp;
+                <a href="#" class="btn btn-secondary" id="IDButton" onclick="downloadImage()">Download</a>
+            </div>
+            <div class="row ml-0" id="freakControlsCheckBoxes">
+                <span class="pt-2 mr-4">Animate Parts (Summer Skins)&nbsp;</span>
+                <input type="checkbox" id="animatePartsCheckbox" name="animatePartsCheckbox" value="animate" onChange="handleCheckbox(this);" >
+                <span class="pt-2 ml-4 mr-4">Remove Space Suit&nbsp;</span>
+                <input type="checkbox" id="nakedMysticCheckbox" name="nakedMysticCheckbox" value="naked" onChange="handleNakedCheckbox(this);" >
+            </div>
+            <br>
+            <p>
+                <a class="btn btn-secondary btn-sm" data-toggle="collapse" href="#freakControlsAccessories" role="button" aria-expanded="false" aria-controls="freakControlsAccessories">
+                  Accessories
+                </a>
+            </p>
+            <div id="freakControlsAccessories" class="collapse">
+                Air<br><div id="airAccessories" class="row ml-0"></div><br>
+                Cheek<br><div id="cheekAccessories" class="row ml-0"></div><br>
+                Ground<br><div id="groundAccessories" class="row ml-0"></div><br>
+                Hip<br><div id="hipAccessories" class="row ml-0"></div><br>
+                Neck<br><div id="neckAccessories" class="row ml-0"></div><br>
+                <button class="btn btn-secondary btn-sm" id="clearAccessories" onClick="clearAccessories()">Clear Accessories</button>
+            </div>
+            <br/>
+            <div id="freakImageLoc">
+            </div>
+            <div id="freakFun">
+            Fun stuff: Use arrows keys to move the axie around. 'x' to bite. spacebar to "jump".
+            </div>
+        </div>
+    <script>
+    $(document).ready(function(){
+        $.ajax({
+            url: "/header.html",
+            cache: false,
+            dataType: "html",
+            success: function(data) {
+                $("#headerDiv").html(data);
+            }
+        });
+    });
+    init();
+    getAxie();
+
+    document.onkeydown = function (event) {
+        const keyName = event.key;
+        let incrementX = Math.round(app.view.width * 0.05);
+        let incrementY = Math.round(app.view.height * 0.05);
+        switch (event.keyCode) {
+            case 37:
+            case 65:
+                //alert('left');
+                let startingPositionLeft = animation.position.x;
+                //animation.position.x -= incrementX;
+                //if (animation.position.x < 0) animation.position.x = 0;
+                let tickerLeft  =  new PIXI.ticker.Ticker();
+                tickerLeft.add(function () {
+                    //console.log("loopL");
+                    animation.position.x -= 5;
+                    if (animation.position.x < 0) {
+                        animation.position.x = 0;
+                        tickerLeft.destroy();
+                    } else if(animation.position.x <= startingPositionLeft - incrementX) {
+                        tickerLeft.destroy();
+                    }
+                });
+                tickerLeft.start();
+
+                break;
+            case 38:
+            case 87:
+                //alert('up');
+                let startingPositionUp = animation.position.y;
+                let tickerUp  =  new PIXI.ticker.Ticker();
+                tickerUp.add(function () {
+                    //console.log("loopU");
+                    animation.position.y -= 5;
+                    if (animation.position.y <= 0) {
+                        animation.position.y = 0;
+                        tickerUp.destroy();
+                    } else if(animation.position.y <= startingPositionUp - incrementY) {
+                        tickerUp.destroy();
+                    }
+                });
+                tickerUp.start();
+                break;
+            case 39:
+            case 68:
+                //alert('right');
+                let startingPositionRight = animation.position.x;
+                let tickerRight  =  new PIXI.ticker.Ticker();
+                tickerRight.add(function () {
+                    //console.log("loopR");
+                    animation.position.x += 5;
+                    if (animation.position.x > app.view.width) {
+                        animation.position.x = app.view.width;
+                        tickerRight.destroy();
+                    } else if(animation.position.x >= startingPositionRight + incrementX) {
+                        tickerRight.destroy();
+                    }
+                });
+                tickerRight.start();
+                break;
+            case 40:
+            case 83:
+                //alert('down');
+                let startingPositionDown = animation.position.y;
+                let tickerDown  =  new PIXI.ticker.Ticker();
+                tickerDown.add(function () {
+                    //console.log("loopD");
+                    animation.position.y += 5;
+                    if (animation.position.y > app.view.height) {
+                        animation.position.y = app.view.height;
+                        tickerDown.destroy();
+                    } else if(animation.position.y >= startingPositionDown + incrementY) {
+                        tickerDown.destroy();
+                    }
+                });
+                tickerDown.start();
+                break;
+            case 32:
+                animation.state.setAnimation(0, 'activity/appear', false);
+                animation.state.addAnimation(0, 'action/idle/normal', true, 0);
+                /*
+                let startingPositionSpace = animation.position.y;
+                let tickerSpace  =  new PIXI.ticker.Ticker();
+                tickerSpace.add(function () {
+                    //console.log("loopR");
+                    animation.position.y -= 5;
+                    if (animation.position.y < 0) {
+                        animation.position.y = 0;
+                        tickerSpace.destroy();
+                    } else if(animation.position.y <= startingPositionSpace - incrementY) {
+                        tickerSpace.destroy();
+                    }
+                });
+                tickerSpace.start();
+                */
+                break;
+            case 88:
+                animation.state.setAnimation(0, 'attack/melee/mouth-bite', false);
+                animation.state.addAnimation(0, 'action/idle/normal', true, 0);
+                break;
+        }
+    };
+    </script>
+
+    </body>
+</html>
